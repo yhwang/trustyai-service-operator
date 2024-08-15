@@ -2,6 +2,7 @@
 
 echo "Installing kfDef from test directory"
 DSC_FILENAME=odh-core-dsc.yaml
+REPO_BRANCH=${REPO_BRANCH:-"main"}
 
 set -x
 ## Install the opendatahub-operator
@@ -91,7 +92,7 @@ pushd ~/kfdef
 
 if [ -z "$PULL_NUMBER" ] || [ $REPO_OWNER != "trustyai-explainability" ] || [ $REPO_NAME != "trustyai-service-operator" ]; then
   echo "No pull number and/or workflow is not originating from the original repo: using default ${DSC_FILENAME}"
-  sed -i "s#trustyaiRepoPlaceholder#https://github.com/trustyai-explainability/trustyai-service-operator/tarball/main#" ./${DSC_FILENAME}
+  sed -i "s#trustyaiRepoPlaceholder#https://github.com/${REPO_OWNER}/trustyai-service-operator/tarball/${REPO_BRANCH}#" ./${DSC_FILENAME}
 else
   echo "Setting TrustyAI devflags to use PR image"
   BRANCH_SHA=$(curl  https://api.github.com/repos/trustyai-explainability/trustyai-service-operator/pulls/${PULL_NUMBER} | jq ".head.sha"  | tr -d '"')

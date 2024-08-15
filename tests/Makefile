@@ -7,7 +7,7 @@ ODHPROJECT=opendatahub
 # Specify the repo and git ref/branch to use for cloning ods-ci repo for the automation that works when running against an ODH deployment
 ODS_CI_REPO=https://github.com/red-hat-data-services/ods-ci
 ODS_CI_GITREF=master
-OC_CLI_URL=https://mirror.openshift.com/pub/openshift-v4/amd64/clients/ocp/latest/openshift-client-linux.tar.gz
+OC_CLI_URL=https://mirror.openshift.com/pub/openshift-v4/amd64/clients/ocp/4.16.4/openshift-client-linux-arm64-rhel8-4.16.4.tar.gz
 # Authentication info for the OCP test user account that can be used in the test automation
 # For all tests, the expectation is that this is used for normal end-user access to the cluster
 OPENSHIFT_TESTUSER_NAME=
@@ -34,12 +34,12 @@ build:
 run:
 	# Confirm that we have a directory for storing any screenshots from selenium tests
 	mkdir -p ${LOCAL_ARTIFACT_DIR}/screenshots
-	oc config view --flatten --minify > /tmp/tests-kubeconfig
-	${BUILD_TOOL} run -e SKIP_INSTALL=$(SKIP_INSTALL) -e TESTS_REGEX=$(TESTS_REGEX) -e SKIP_OPERATOR_INSTALL=$(SKIP_OPERATOR_INSTALL) \
+	oc config view --flatten --minify > ${LOCAL_ARTIFACT_DIR}/screenshots/tests-kubeconfig
+	${BUILD_TOOL} run --network="host" -e SKIP_INSTALL=$(SKIP_INSTALL) -e TESTS_REGEX=$(TESTS_REGEX) -e SKIP_OPERATOR_INSTALL=$(SKIP_OPERATOR_INSTALL) \
 	    -e SKIP_KFDEF_INSTALL=$(SKIP_KFDEF_INSTALL) -e ODHPROJECT=$(ODHPROJECT) \
 		-e OPENSHIFT_TESTUSER_NAME="$(OPENSHIFT_TESTUSER_NAME)" -e OPENSHIFT_TESTUSER_PASS="$(OPENSHIFT_TESTUSER_PASS)" -e OPENSHIFT_TESTUSER_LOGIN_PROVIDER=$(OPENSHIFT_TESTUSER_LOGIN_PROVIDER) -e ARTIFACT_DIR=$(ARTIFACT_DIR) \
-		-e LOCAL=$(LOCAL) -e TEARDOWN=$(TEARDOWN)\
-		-it -v ${LOCAL_ARTIFACT_DIR}/:$(ARTIFACT_DIR):z -v /tmp/tests-kubeconfig:/tmp/kubeconfig:z $(IMAGE)
+		-e LOCAL=$(LOCAL) -e TEARDOWN=$(TEARDOWN) -e REPO_OWNER=yhwang -e REPO_BRANCH=lmes-e2e-test\
+		-it -v ${LOCAL_ARTIFACT_DIR}/:$(ARTIFACT_DIR):z -v ${LOCAL_ARTIFACT_DIR}/screenshots/tests-kubeconfig:/tmp/kubeconfig:z $(IMAGE)
 
 clean:
 	oc delete -n $(ODHPROJECT) kfdef odh-core || true
