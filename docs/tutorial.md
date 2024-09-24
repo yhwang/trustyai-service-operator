@@ -108,4 +108,43 @@ The f1_micro, f1_macro, and accuracy scores are 0.56, 0.36, and 0.56. The full r
 as a JSON document. The command above only retrieves the `results` field of the JSON document. 
 
 ## Defails of LMEvalJob
-In this section, let's go through the details of each property in the LMEvalJob.
+In this section, let's review each property in the LMEvalJob and its usage.
+
+- `model`: Specify which model type or provider is evaluated. This field directly maps to the `--model` argument of the lm-evaluation-harness and
+  the valid options are listed [here](https://github.com/EleutherAI/lm-evaluation-harness/tree/main#model-apis-and-inference-servers). However, the job
+  image doesn't include all the necessary packages to support all types of model and providers. It's similar to the situation that
+  the lm-evaluation-harness doesn't install all the needed packages for all of the model providers when you install its Python package. Currently, the
+  supported model types and providers are:
+  - `hf`: HuggingFace models
+  - `openai-completions`: OpenAI Completions API models
+  - `openai-chat-completions`: [ChatCompletions API models](https://platform.openai.com/docs/guides/chat-completions)
+  - `local-completions` and `local-chat-completions`: OpenAI API-compatible servers
+  - `textsynth`: [TextSynth APIs](https://textsynth.com/documentation.html#engines)
+  
+  Adding the support of other model types and providers backed by lm-evaluation-harness is easy. You just need to add the corresponding dependency packages
+  when building the job image. Check the [Dockerfile.lmes-job](../Dockerfile.lmes-job) file for more details.
+- `modelArgs`: A list of paired name and value arguments for the model type. Each model type or provider supports different arguments.
+  - `hf` (HuggingFace): Check the [huggingface.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/huggingface.py#L55)
+  - `local-completions` (OpenAI API-compatible server): Check the [openai_completions.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/openai_completions.py#L13)
+    and [tapi_models.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/api_models.py#L55)
+  - `local-chat-completions` (OpenAI API-compatible server): Check [openai_completions.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/openai_completions.py#L99)
+    and [tapi_models.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/api_models.py#L55)
+  - `openai-completions` (OpenAI Completions API models): Check [openai_completions.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/openai_completions.py#L177)
+    and [tapi_models.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/api_models.py#L55)
+  - `openai-chat-completions` (ChatCompletions API models): Check [openai_completions.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/openai_completions.py#L209)
+    and [tapi_models.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/api_models.py#L55)
+  - `textsynth` (TextSynth APIs): Check [textsynth.py](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/textsynth.py#L52)
+- `taskList`: A list of evaluation tasks. This list supports two ways to specify the tasks:
+  - `taskNames`: Specify a list of task names that lm-evaluation-harness supports. Since the list is too long, the better way to get the full list is to run the lm-eval CLI by the following command:
+    ```
+    docker run --rm -ti quay.io/yhwang/ta-lmes-job:latest python -m lm_eval --task list
+    ```
+    The command will download the job image and run the lm_eval CLI to get the tasks list. Specify the tasks as a string list for the `taskNames`.
+  - `taskRecipes`: Specify the task using the Unitxt recipe format:
+    - `card`: Specify a Unitxt card from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.cards.__dir__.html). Use the card's ID as the value.
+      For example: The ID of [Wnli card](https://www.unitxt.ai/en/latest/catalog/catalog.cards.wnli.html) is `cards.wnli`.
+    - `template`: Specify a Unitxt template from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.templates.__dir__.html). Use the template's ID as the value.
+    - `task` (optional): Specify a Unitxt task from the [Unitxt catalog][https://www.unitxt.ai/en/latest/catalog/catalog.cards.__dir__.html]. Use the task's ID as the value.
+      A Unitxt card has a pre-defined task. Only specify a value for this if you want to run different task.
+    - `metrics` (optional): Specify a list of Unitx metrics from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.metrics.__dir__.html). Use the metric's ID as the value.
+      A Unitxt task has a set of pre-defined metrics. Only specify a set of metrics if you need different metrics.
