@@ -148,3 +148,7 @@ In this section, let's review each property in the LMEvalJob and its usage.
       A Unitxt card has a pre-defined task. Only specify a value for this if you want to run different task.
     - `metrics` (optional): Specify a list of Unitx metrics from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.metrics.__dir__.html). Use the metric's ID as the value.
       A Unitxt task has a set of pre-defined metrics. Only specify a set of metrics if you need different metrics.
+    - `format` (optional): Specify a Unitxt format from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.formats.__dir__.html). Use the format's ID as the value.
+    - `loaderLimit` (optional): Specifies the maximum number of instances per stream to be returned from the loader (used to reduce loading time in large datasets).
+    - `numDemos` (optional): Number of fewshot to be used.
+    - `demosPoolSize` (optional): Size of the fewshot pool.
