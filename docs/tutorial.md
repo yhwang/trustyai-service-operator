@@ -31,16 +31,11 @@ LM-Eval
   The default value is "quay.io/trustyai/ta-lmes-job:latest".
 - `lmes-driver-image`: The image for the LM-Eval driver. Check `cmd/lmes_driver` directory for detailed information about the driver.
   The default value is "quay.io/trustyai/ta-lmes-driver:latest"
-- `lmes-grpc-port`: The internal port for the gRPC service. The default value is "8082"
-- `lmes-grpc-service`: The internal service name of the gRPC service: The default value is "trustyai-service-operator-lmes-grpc".
-- `lmes-grpc-server-secret`: The secret name for the gRPC server if you'd like to enable TLS on the internal gPRC service. 
-- `lmes-grpc-client-secret`: The secret name for the gPRC client if you'd like to enable mTLS on the internal gPRC service.
 - `lmes-image-pull-policy`: The image-pulling policy when running the evaluation job. The default value is "Always".
 - `lmes-default-batch-size` (int): The default batch size when invoking the mode inference API. This only works for local models
   The default value is "8"
 - `lmes-max-batch-size` (int): The max. batch size that users can specify in an evaluation job. The default value is "24".
 - `lmes-pod-checking-interval`: The interval to check the job pod for an evaluation job. The default value is "10s".
-- `driver-report-interval`: The interval that the driver reports job status. The default value is "10s".
 
 After updating the settings in the configmap, the new values only take effect when the operator restarts.
 
@@ -141,8 +136,14 @@ In this section, let's review each property in the LMEvalJob and its usage.
     ```
     The command will download the job image and run the lm_eval CLI to get the tasks list. Specify the tasks as a string list for the `taskNames`.
   - `taskRecipes`: Specify the task using the Unitxt recipe format:
-    - `card`: Specify a Unitxt card from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.cards.__dir__.html). Use the card's ID as the value.
+    - `card`: Use the `name` to specify a Unitxt card or `custom` for a custom card
+      - `name`: Specify a Unitxt card from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.cards.__dir__.html). Use the card's ID as the value.
       For example: The ID of [Wnli card](https://www.unitxt.ai/en/latest/catalog/catalog.cards.wnli.html) is `cards.wnli`.
+      - `custom`: Define a custom card and use it. The value is a JSON string for a custom Unitxt card which contains the custom dataset.
+	      Use the documentation here: https://www.unitxt.ai/en/latest/docs/adding_dataset.html#adding-to-the-catalog
+	      to compose a custom card, store it as a JSON file, and use the JSON content as the value here.
+        If the dataset used by the custom card needs an API key from an environment variable or a persistent volume, you have to
+        set up corresponding resources under the `pod` field. Check the `pod` field below.
     - `template`: Specify a Unitxt template from the [Unitxt catalog](https://www.unitxt.ai/en/latest/catalog/catalog.templates.__dir__.html). Use the template's ID as the value.
     - `task` (optional): Specify a Unitxt task from the [Unitxt catalog][https://www.unitxt.ai/en/latest/catalog/catalog.cards.__dir__.html]. Use the task's ID as the value.
       A Unitxt card has a pre-defined task. Only specify a value for this if you want to run different task.
@@ -152,3 +153,15 @@ In this section, let's review each property in the LMEvalJob and its usage.
     - `loaderLimit` (optional): Specifies the maximum number of instances per stream to be returned from the loader (used to reduce loading time in large datasets).
     - `numDemos` (optional): Number of fewshot to be used.
     - `demosPoolSize` (optional): Size of the fewshot pool.
+ - `numFewShot`: Sets the number of few-shot examples to place in context. If you are using a task from Unitxt, don't use this field. Use `numDemos` under the `taskRecipes` instead.
+ - `limit`: Instead of running the whole dataset, set a limit to run the tasks. Accepts an integer, or a float between 0.0 and 1.0.
+ - `genArgs`: Map to `--gen_kwargs` parameter for the lm-evaluation-harness. Here are the [details](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/interface.md#command-line-interface).
+ - `logSampes`: If this flag is passed, then the model's outputs, and the text fed into the model, will be saved at per-document granularity.
+ - `batchSize`: Batch size for the evaluation. This is used by the models that run and are loaded locally and do not apply to the commercial APIs.
+ - `pod`: Specify extra information for the lm-eval job's pod.
+   - `container`: Extra container settings for the lm-eval container.
+     - `env`: Specify environment variables. It uses the `EnvVar` data structure of kubernetes.
+     - `volumeMounts`: Mount the volumes into the lm-eval container.
+     - `resources`: Specify the resources for the lm-eval container.
+   - `volumes`: Specify the volume information for the lm-eval and other containers. It uses the `Volume` data structure of kubernetes.
+   - `sideCars`: A list of containers that run along with the lm-eval container. It uses the `Container` data structure of kubernetes.
