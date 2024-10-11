@@ -50,7 +50,6 @@ Here is an example of an LMEvalJob object:
 apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: LMEvalJob
 metadata:
-  labels:
   name: evaljob-sample
 spec:
   model: hf
@@ -59,7 +58,8 @@ spec:
     value: google/flan-t5-base
   taskList:
     taskRecipes:
-    - card: "cards.wnli"
+    - card:
+        name: "cards.wnli"
       template: "templates.classification.multi_class.relation.default"
   logSamples: true
 ```
@@ -165,3 +165,141 @@ In this section, let's review each property in the LMEvalJob and its usage.
      - `resources`: Specify the resources for the lm-eval container.
    - `volumes`: Specify the volume information for the lm-eval and other containers. It uses the `Volume` data structure of kubernetes.
    - `sideCars`: A list of containers that run along with the lm-eval container. It uses the `Container` data structure of kubernetes.
+
+## Examples
+
+### Environment Variables
+If the LMEvalJob needs to access a model on HuggingFace with the access token, you can set up the `HF_TOKEN` as one of the environment variables
+for the lm-eval container:
+```
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: evaljob-sample
+spec:
+  model: hf
+  modelArgs:
+  - name: pretrained
+    value: huggingfacespace/model
+  taskList:
+    taskNames:
+    - unfair_tos
+  logSamples: true
+  pod:
+    container:
+      env:
+      - name: HF_TOKEN
+        value: "My HuggingFace token"
+```
+
+Or you can create a secret to store the token and refer the key from the secret object using the reference syntax:
+(only attach the env part)
+```
+      env:
+      - name: HF_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: my-secret
+            key: hf-token
+```
+
+### Custom Unitxt Card
+
+Pass a custom Unitxt Card in JSON format:
+```
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: evaljob-sample
+spec:
+  model: hf
+  modelArgs:
+  - name: pretrained
+    value: google/flan-t5-base
+  taskList:
+    taskRecipes:
+    - template: "templates.classification.multi_class.relation.default"
+      card:
+        custom: |
+          {
+            "__type__": "task_card",
+            "loader": {
+              "__type__": "load_hf",
+              "path": "glue",
+              "name": "wnli"
+            },
+            "preprocess_steps": [
+              {
+                "__type__": "split_random_mix",
+                "mix": {
+                  "train": "train[95%]",
+                  "validation": "train[5%]",
+                  "test": "validation"
+                }
+              },
+              {
+                "__type__": "rename",
+                "field": "sentence1",
+                "to_field": "text_a"
+              },
+              {
+                "__type__": "rename",
+                "field": "sentence2",
+                "to_field": "text_b"
+              },
+              {
+                "__type__": "map_instance_values",
+                "mappers": {
+                  "label": {
+                    "0": "entailment",
+                    "1": "not entailment"
+                  }
+                }
+              },
+              {
+                "__type__": "set",
+                "fields": {
+                  "classes": [
+                    "entailment",
+                    "not entailment"
+                  ]
+                }
+              },
+              {
+                "__type__": "set",
+                "fields": {
+                  "type_of_relation": "entailment"
+                }
+              },
+              {
+                "__type__": "set",
+                "fields": {
+                  "text_a_type": "premise"
+                }
+              },
+              {
+                "__type__": "set",
+                "fields": {
+                  "text_b_type": "hypothesis"
+                }
+              }
+            ],
+            "task": "tasks.classification.multi_class.relation",
+            "templates": "templates.classification.multi_class.relation.all"
+          }
+  logSamples: true
+
+```
+
+Inside the custom card, it uses the HuggingFace dataset loader:
+```
+            "loader": {
+              "__type__": "load_hf",
+              "path": "glue",
+              "name": "wnli"
+            },
+```
+You can use other [loaders](https://www.unitxt.ai/en/latest/unitxt.loaders.html#module-unitxt.loaders)
+and use the `volumes` and `volumeMounts` to mount the dataset from persistent volumes. For example, if you
+use [LoadCSV](https://www.unitxt.ai/en/latest/unitxt.loaders.html#unitxt.loaders.LoadCSV), you need to mount the
+files to the container and make the dataset accessible for the evaluation process.
