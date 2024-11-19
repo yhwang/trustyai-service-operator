@@ -115,6 +115,7 @@ In this section, let's review each property in the LMEvalJob and its usage.
   - `openai-chat-completions`: [ChatCompletions API models](https://platform.openai.com/docs/guides/chat-completions)
   - `local-completions` and `local-chat-completions`: OpenAI API-compatible servers
   - `textsynth`: [TextSynth APIs](https://textsynth.com/documentation.html#engines)
+  - `watsonx_llm`: IBM watsonx_llm. Check detailed usage [here](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/models/ibm_watsonx_ai.py)
   
   Adding the support of other model types and providers backed by lm-evaluation-harness is easy. You just need to add the corresponding dependency packages
   when building the job image. Check the [Dockerfile.lmes-job](../Dockerfile.lmes-job) file for more details.
@@ -163,8 +164,17 @@ In this section, let's review each property in the LMEvalJob and its usage.
      - `env`: Specify environment variables. It uses the `EnvVar` data structure of kubernetes.
      - `volumeMounts`: Mount the volumes into the lm-eval container.
      - `resources`: Specify the resources for the lm-eval container.
+     - `securityContext`: SecurityContext defines the security options the container should be run with.
    - `volumes`: Specify the volume information for the lm-eval and other containers. It uses the `Volume` data structure of kubernetes.
    - `sideCars`: A list of containers that run along with the lm-eval container. It uses the `Container` data structure of kubernetes.
+   - `affinity`: Define which nodes the pod can be scheduled on. See more information [here](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)
+   - `securityContext`: SecurityContext holds pod-level security attributes and common container settings.
+ - `outputs`: Use this to specify storage for evaluation results.
+   - `pvcName`: Use an existing PVC to store the outputs. Specify the name of an existing PVC.
+   - `pvcManaged`: Let LMES create a PVC with the specified name and store the outputs.
+ - `offline`: Offline specifies settings for running LMEvalJobs in an offline mode
+   - `storage`: Load the model from the storage for the offline mode
+     - `pvcName`: Specify the name of a PVC which contains the offline model.
 
 ## Examples
 
