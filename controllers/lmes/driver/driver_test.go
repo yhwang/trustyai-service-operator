@@ -253,9 +253,16 @@ func Test_CustomCards(t *testing.T) {
 		CatalogPath:     "./",
 		TaskRecipes: []string{
 			"card=cards.custom_0,template=unitxt.template,metrics=[unitxt.metric1,unitxt.metric2],format=unitxt.format,num_demos=5,demos_pool_size=10",
+			"card=cards.unitxt.card1,template=templates.tp_0,system_prompt=system_prompts.sp_0,metrics=[unitxt.metric3,unitxt.metric4],format=unitxt.format,num_demos=5,demos_pool_size=10",
 		},
 		CustomCards: []string{
 			`{ "__type__": "task_card", "loader": { "__type__": "load_hf", "path": "wmt16", "name": "de-en" }, "preprocess_steps": [ { "__type__": "copy", "field": "translation/en", "to_field": "text" }, { "__type__": "copy", "field": "translation/de", "to_field": "translation" }, { "__type__": "set", "fields": { "source_language": "english", "target_language": "deutch" } } ], "task": "tasks.translation.directed", "templates": "templates.translation.directed.all" }`,
+		},
+		CustomTemplates: []string{
+			`{ "__type__": "input_output_template", "instruction": "In the following task, you translate a {text_type}.", "input_format": "Translate this {text_type} from {source_language} to {target_language}: {text}.", "target_prefix": "Translation: ", "output_format": "{translation}", "postprocessors": [ "processors.lower_case" ] }`,
+		},
+		CustomSystemPrompt: []string{
+			"this is a custom system prompt",
 		},
 		Args:       []string{"sh", "-ec", "sleep 1; echo 'testing progress: 100%|' >&2; sleep 3"},
 		SocketPath: genRandomSocketPath(),
@@ -280,17 +287,40 @@ func Test_CustomCards(t *testing.T) {
 		"task: tr_0\ninclude: unitxt\nrecipe: card=cards.custom_0,template=unitxt.template,metrics=[unitxt.metric1,unitxt.metric2],format=unitxt.format,num_demos=5,demos_pool_size=10",
 		string(tr0),
 	)
+	tr1, err := os.ReadFile("./tr_1.yaml")
+	assert.Nil(t, err)
+	assert.Equal(t,
+		"task: tr_1\ninclude: unitxt\nrecipe: card=cards.unitxt.card1,template=templates.tp_0,system_prompt=system_prompts.sp_0,metrics=[unitxt.metric3,unitxt.metric4],format=unitxt.format,num_demos=5,demos_pool_size=10",
+		string(tr1),
+	)
 	custom0, err := os.ReadFile("./cards/custom_0.json")
 	assert.Nil(t, err)
 	assert.Equal(t,
 		`{ "__type__": "task_card", "loader": { "__type__": "load_hf", "path": "wmt16", "name": "de-en" }, "preprocess_steps": [ { "__type__": "copy", "field": "translation/en", "to_field": "text" }, { "__type__": "copy", "field": "translation/de", "to_field": "translation" }, { "__type__": "set", "fields": { "source_language": "english", "target_language": "deutch" } } ], "task": "tasks.translation.directed", "templates": "templates.translation.directed.all" }`,
 		string(custom0),
 	)
+	template0, err := os.ReadFile("./templates/tp_0.json")
+	assert.Nil(t, err)
+	assert.Equal(t,
+		`{ "__type__": "input_output_template", "instruction": "In the following task, you translate a {text_type}.", "input_format": "Translate this {text_type} from {source_language} to {target_language}: {text}.", "target_prefix": "Translation: ", "output_format": "{translation}", "postprocessors": [ "processors.lower_case" ] }`,
+		string(template0),
+	)
+	prompt0, err := os.ReadFile("./system_prompts/sp_0.json")
+	assert.Nil(t, err)
+	assert.Equal(t,
+		`{ "__type__": "textual_system_prompt", "text": "this is a custom system prompt" }`,
+		string(prompt0),
+	)
 	assert.Nil(t, os.Remove("./stderr.log"))
 	assert.Nil(t, os.Remove("./stdout.log"))
 	assert.Nil(t, os.Remove("./tr_0.yaml"))
+	assert.Nil(t, os.Remove("./tr_1.yaml"))
 	assert.Nil(t, os.Remove("./cards/custom_0.json"))
 	assert.Nil(t, os.Remove("./cards"))
+	assert.Nil(t, os.Remove("./templates/tp_0.json"))
+	assert.Nil(t, os.Remove("./templates"))
+	assert.Nil(t, os.Remove("./system_prompts/sp_0.json"))
+	assert.Nil(t, os.Remove("./system_prompts"))
 }
 
 func Test_ProgramError(t *testing.T) {

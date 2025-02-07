@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -43,26 +44,30 @@ var (
 
 const (
 	// put the domain socket under /tmp. may move to emptydir to share across containers
-	socketPath             = "/tmp/ta-lmes-driver.sock"
-	DefaultTaskRecipesPath = "/opt/app-root/src/my_tasks"
-	DefaultCatalogPath     = "/opt/app-root/src/my_catalogs"
-	TaskRecipePrefix       = "tr"
-	CustomCardPrefix       = "custom"
-	ShutdownURI            = "/Shutdown"
-	GetStatusURI           = "/GetStatus"
+	socketPath               = "/tmp/ta-lmes-driver.sock"
+	DefaultTaskRecipesPath   = "/opt/app-root/src/my_tasks"
+	DefaultCatalogPath       = "/opt/app-root/src/my_catalogs"
+	TaskRecipePrefix         = "tr"
+	CustomCardPrefix         = "custom"
+	CustomTemplatePrefix     = "tp"
+	CustomSystemPromptPrefix = "sp"
+	ShutdownURI              = "/Shutdown"
+	GetStatusURI             = "/GetStatus"
 )
 
 type DriverOption struct {
-	Context         context.Context
-	OutputPath      string
-	DetectDevice    bool
-	TaskRecipesPath string
-	TaskRecipes     []string
-	CatalogPath     string
-	CustomCards     []string
-	Logger          logr.Logger
-	Args            []string
-	SocketPath      string
+	Context            context.Context
+	OutputPath         string
+	DetectDevice       bool
+	TaskRecipesPath    string
+	TaskRecipes        []string
+	CatalogPath        string
+	CustomCards        []string
+	CustomTemplates    []string
+	CustomSystemPrompt []string
+	Logger             logr.Logger
+	Args               []string
+	SocketPath         string
 }
 
 type Driver interface {
@@ -313,8 +318,18 @@ func (d *driverImpl) exec() error {
 		return fmt.Errorf("failed to create task recipes: %v", err)
 	}
 
+	if err := d.prepDir4CustomArtifacts(); err != nil {
+		return fmt.Errorf("failed to create the directories for custom artifacts: %v", err)
+	}
+
 	if err := d.createCustomCards(); err != nil {
 		return fmt.Errorf("failed to create custom cards: %v", err)
+	}
+	if err := d.createCustomTemplates(); err != nil {
+		return fmt.Errorf("failed to create custom templates: %v", err)
+	}
+	if err := d.createCustomSystemPrompts(); err != nil {
+		return fmt.Errorf("failed to create custom system_prompts: %v", err)
 	}
 
 	// Detect available devices if needed
@@ -478,6 +493,15 @@ func (d *driverImpl) createTaskRecipes() error {
 	return nil
 }
 
+func (d *driverImpl) prepDir4CustomArtifacts() error {
+	subDirs := []string{"cards", "templates", "system_prompts"}
+	var errs []error
+	for _, dir := range subDirs {
+		errs = append(errs, mkdirIfNotExist(filepath.Join(d.Option.CatalogPath, dir)))
+	}
+	return errors.Join(errs...)
+}
+
 func (d *driverImpl) createCustomCards() error {
 	for i, customCard := range d.Option.CustomCards {
 		err := os.WriteFile(
@@ -488,6 +512,45 @@ func (d *driverImpl) createCustomCards() error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (d *driverImpl) createCustomTemplates() error {
+	for i, customTemplate := range d.Option.CustomTemplates {
+		err := os.WriteFile(
+			filepath.Join(d.Option.CatalogPath, "templates", fmt.Sprintf("%s_%d.json", CustomTemplatePrefix, i)),
+			[]byte(customTemplate),
+			0666,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *driverImpl) createCustomSystemPrompts() error {
+	for i, systemPrompt := range d.Option.CustomSystemPrompt {
+		err := os.WriteFile(
+			filepath.Join(d.Option.CatalogPath, "system_prompts", fmt.Sprintf("%s_%d.json", CustomSystemPromptPrefix, i)),
+			[]byte(fmt.Sprintf(`{ "__type__": "textual_system_prompt", "text": "%s" }`, systemPrompt)),
+			0666,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mkdirIfNotExist(path string) error {
+	fi, err := os.Stat(path)
+	if err == nil && !fi.IsDir() {
+		return fmt.Errorf("%s is a file. can not create a directory", path)
+	}
+	if os.IsNotExist(err) {
+		return os.MkdirAll(path, 0770)
 	}
 	return nil
 }
